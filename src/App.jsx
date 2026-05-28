@@ -790,6 +790,10 @@ function App() {
           정답: {correctCount} / 오답: {wrongCount}
         </p>
 
+        <p style={{ margin: '5px 0' }}>
+          진행: {questionCount}문제 (추가 학습 중)
+        </p>
+
         <p style={{ marginBottom: '20px' }}>
           연속 정답: {streak}
         </p>
@@ -843,7 +847,10 @@ function App() {
             <p>50문제를 완료했습니다!</p>
 
             <button
-              onClick={() => setShowContinue(false)}
+              onClick={() => {
+                setShowContinue(false)
+                makeQuestion(words)
+              }}
               style={{ marginRight: '10px' }}
             >
               계속 풀기
@@ -861,7 +868,7 @@ function App() {
           onClick={() => {
 
             const ok = window.confirm(
-              '지금 종료하면 점수는 참고용입니다. 종료하시겠습니까?'
+              '지금까지의 결과를 확인하시겠습니까?'
             )
 
             if (ok) {
