@@ -573,8 +573,13 @@ function App() {
           textAlign: 'center'
         }}>
 
-          <h1 style={{ marginBottom: '20px' }}>
-            영어 단어 실력 테스트
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: 'bold',
+            lineHeight: '1.4',
+            marginBottom: '25px'
+          }}>
+            영어 단어 실력
           </h1>
 
           <button
