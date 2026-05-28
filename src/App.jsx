@@ -579,7 +579,7 @@ function App() {
             lineHeight: '1.4',
             marginBottom: '25px'
           }}>
-            영어 단어 실력
+            영어 단어 실력 테스트
           </h1>
 
           <button
