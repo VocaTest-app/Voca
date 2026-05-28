@@ -45,6 +45,7 @@ function App() {
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [isAnswerChecked, setIsAnswerChecked] = useState(false)
 
+  const [showContinue, setShowContinue] = useState(false);
 
   useEffect(() => {
     fetchWords()
@@ -431,8 +432,8 @@ function App() {
 
     // 🔽 종료 조건
 
-    if (questionCount + 1 >= 50) {
-      setIsFinished(true)
+    if (questionCount + 1 === 50) {
+      setShowContinue(true)
       return
     }
 
@@ -831,6 +832,30 @@ function App() {
         ))}
 
         <br />
+
+        {showContinue && (
+          <div style={{
+            marginTop: '20px',
+            padding: '15px',
+            borderRadius: '10px',
+            backgroundColor: '#fff3cd'
+          }}>
+            <p>50문제를 완료했습니다!</p>
+
+            <button
+              onClick={() => setShowContinue(false)}
+              style={{ marginRight: '10px' }}
+            >
+              계속 풀기
+            </button>
+
+            <button
+              onClick={() => setIsFinished(true)}
+            >
+              결과 보기
+            </button>
+          </div>
+        )}
 
         <button
           onClick={() => {
