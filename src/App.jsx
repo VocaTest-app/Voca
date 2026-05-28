@@ -434,6 +434,11 @@ function App() {
 
     if (questionCount + 1 === 50) {
       setShowContinue(true)
+
+      // ⭐ 이거 반드시 추가
+      setSelectedAnswer(null)
+      setIsAnswerChecked(false)
+
       return
     }
 
@@ -791,7 +796,8 @@ function App() {
         </p>
 
         <p style={{ margin: '5px 0' }}>
-          진행: {questionCount}문제 (추가 학습 중)
+          진행: {questionCount}문제
+          {questionCount > 50 && ' (추가 학습 중)'}
         </p>
 
         <p style={{ marginBottom: '20px' }}>
@@ -849,6 +855,8 @@ function App() {
             <button
               onClick={() => {
                 setShowContinue(false)
+                setSelectedAnswer(null)
+                setIsAnswerChecked(false)
                 makeQuestion(words)
               }}
               style={{ marginRight: '10px' }}
