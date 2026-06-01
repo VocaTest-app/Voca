@@ -1,6 +1,25 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
+import {
+  Line
+} from 'react-chartjs-2'
+
+import {
+  Chart as ChartJS,
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement
+} from 'chart.js'
+
+ChartJS.register(
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement
+)
+
 function App() {
 
   console.log('앱 실행됨')
@@ -13,7 +32,8 @@ function App() {
     border: '1px solid #ddd',
     backgroundColor: '#fafafa',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    color: 'black'
   }
 
   const [words, setWords] = useState([])
@@ -46,6 +66,93 @@ function App() {
   const [isAnswerChecked, setIsAnswerChecked] = useState(false)
 
   const [showContinue, setShowContinue] = useState(false);
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [user, setUser] = useState(null)
+
+  const [history, setHistory] = useState([])
+  const [showHistory, setShowHistory] = useState(false)
+
+  console.log('user:', user)
+  console.log('testMode:', testMode)
+  console.log('showHistory:', showHistory)
+
+  useEffect(() => {
+    if (isFinished && user) {
+
+      const accuracy =
+        correctCount / (correctCount + wrongCount)
+
+      const penalty = wrongCount * 0.03
+
+      const finalScore =
+        levelScore * (0.7 + 0.3 * accuracy) - penalty
+
+      saveResult(finalScore)
+    }
+  }, [isFinished])
+
+  async function handleLogin() {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+
+    if (error) {
+      alert(error.message)
+    }
+  }
+
+  async function handleSignup() {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
+    })
+
+    if (error) {
+      alert(error.message)
+    } else {
+      alert('회원가입 성공! 로그인 해주세요')
+    }
+  }
+
+  // ⭐⭐⭐ 여기부터 추가 ⭐⭐⭐
+  async function loadHistory() {
+    const { data, error } = await supabase
+      .from('test_results')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.log(error)
+      return
+    }
+
+    setHistory(data)
+    setShowHistory(true)
+  }
+  // ⭐⭐⭐ 여기까지 ⭐⭐⭐
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      setUser(data.session?.user || null)
+    }
+
+    getSession()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null)
+      }
+    )
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     fetchWords()
@@ -321,6 +428,8 @@ function App() {
 
   function checkAnswer(choice) {
 
+    if (showContinue) return
+
     if (isAnswerChecked) return  // 🔥 중복 클릭 방지
 
     setSelectedAnswer(choice)
@@ -505,6 +614,29 @@ function App() {
 
   }
 
+  async function saveResult(finalScore) {
+
+    console.log('저장 시도')   // ⭐ 추가
+    console.log('user:', user)  // ⭐ 추가
+
+    const { error } = await supabase
+      .from('test_results')
+      .insert([
+        {
+          user_id: user.id,
+          score: finalScore,
+          correct_count: correctCount,
+          wrong_count: wrongCount
+        }
+      ])
+
+    if (error) {
+      console.log('저장 실패:', error.message)
+    } else {
+      console.log('저장 성공')
+    }
+  }
+
   if (reviewMode) {
 
     if (wrongWords.length === 0) {
@@ -558,6 +690,118 @@ function App() {
   }
 
 
+  // ⭐⭐⭐ 로그인 안 된 상태 ⭐⭐⭐
+  if (!user) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '12px',
+          width: '300px',
+          textAlign: 'center'
+        }}>
+
+          <h2>로그인</h2>
+
+          <input
+            placeholder="이메일"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%', marginBottom: '10px' }}
+          />
+
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: '100%', marginBottom: '10px' }}
+          />
+
+          <button onClick={handleLogin} style={{ width: '100%', marginBottom: '10px' }}>
+            로그인
+          </button>
+
+          <button onClick={handleSignup} style={{ width: '100%' }}>
+            회원가입
+          </button>
+
+        </div>
+      </div>
+    )
+  }
+
+  if (showHistory) {
+
+    const chartData = {
+      labels: history.map((_, i) => i + 1),
+      datasets: [
+        {
+          label: '점수 변화',
+          data: history.map(item => item.score),
+          tension: 0.3
+        }
+      ]
+    }
+
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '12px',
+          width: '400px'
+        }}>
+
+          <h2>내 기록</h2>
+          <div style={{ marginBottom: '20px' }}>
+            <Line data={chartData} />
+          </div>
+
+          {history.length === 0 && (
+            <p>기록이 없습니다</p>
+          )}
+
+          {history.map((item, index) => (
+            <div key={index} style={{
+              borderBottom: '1px solid #ddd',
+              padding: '10px 0'
+            }}>
+              <p>점수: {item.score.toFixed(1)}</p>
+              <p>정답: {item.correct_count} / 오답: {item.wrong_count}</p>
+              <p style={{ fontSize: '12px', color: 'gray' }}>
+                {new Date(item.created_at).toLocaleString()}
+              </p>
+            </div>
+          ))}
+
+          <br />
+
+          <button
+            onClick={() => setShowHistory(false)}
+            style={btnStyle}
+          >
+            돌아가기
+          </button>
+
+        </div>
+      </div>
+    )
+  }
+
   if (!testMode) {
 
     return (
@@ -578,6 +822,19 @@ function App() {
           width: '400px',
           textAlign: 'center'
         }}>
+
+          <h2>{user.email}님</h2>
+
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{
+              marginBottom: '20px',
+              padding: '8px',
+              width: '100%'
+            }}
+          >
+            로그아웃
+          </button>
 
           <h1 style={{
             fontSize: '28px',
@@ -607,6 +864,15 @@ function App() {
             style={btnStyle}
           >
             고등
+          </button>
+
+          <br />
+
+          <button
+            onClick={() => loadHistory()}
+            style={btnStyle}
+          >
+            내 기록 보기
           </button>
 
           <br /><br />
@@ -683,9 +949,10 @@ function App() {
       correctCount / (correctCount + wrongCount)
 
     const penalty = wrongCount * 0.03
-
     const finalScore =
       levelScore * (0.7 + 0.3 * accuracy) - penalty
+
+
 
     return (
 
@@ -806,7 +1073,8 @@ function App() {
 
         <h1 style={{
           marginBottom: '20px',
-          fontSize: '28px'
+          fontSize: '28px',
+          color: 'black'
         }}>
           {question.word}
         </h1>
