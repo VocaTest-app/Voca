@@ -26,6 +26,7 @@ function App() {
 
   const btnStyle = {
     width: '100%',
+    maxWidth: '400px',
     padding: '12px',
     marginBottom: '10px',
     borderRadius: '8px',
@@ -73,6 +74,15 @@ function App() {
 
   const [history, setHistory] = useState([])
   const [showHistory, setShowHistory] = useState(false)
+  const [ranking, setRanking] = useState([])
+  const [myRank, setMyRank] = useState(null)
+  const [showRanking, setShowRanking] = useState(false)
+
+  const [nickname, setNickname] = useState('')
+  const [userNickname, setUserNickname] = useState('')
+
+  const [isEditingNickname, setIsEditingNickname] = useState(false)
+  const [newNickname, setNewNickname] = useState('')
 
   console.log('user:', user)
   console.log('testMode:', testMode)
@@ -93,6 +103,13 @@ function App() {
     }
   }, [isFinished])
 
+  useEffect(() => {
+    if (user?.id) {
+      console.log('user 변경 감지 → 닉네임 가져오기')
+      fetchNicknameDirect(user.id)
+    }
+  }, [user])
+
   async function handleLogin() {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -105,7 +122,7 @@ function App() {
   }
 
   async function handleSignup() {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password
     })
@@ -113,9 +130,42 @@ function App() {
     if (error) {
       alert(error.message)
     } else {
-      alert('회원가입 성공! 로그인 해주세요')
+      if (data?.user) {
+        await supabase.from('users').upsert([
+          {
+            id: data.user.id,
+            nickname: nickname || '닉네임 없음'
+          }
+        ])
+      }
+
+      alert('회원가입 성공!')
     }
   }
+
+
+  async function fetchNicknameDirect(userId) {
+    const { data } = await supabase
+      .from('users')
+      .select('nickname')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (data && data.nickname) {
+      setUserNickname(data.nickname)
+    } else {
+      // ⭐⭐⭐ 여기 추가 ⭐⭐⭐
+      await supabase.from('users').insert([
+        {
+          id: userId,
+          nickname: '닉네임 없음'
+        }
+      ])
+
+      setUserNickname('닉네임 없음')
+    }
+  }
+
 
   // ⭐⭐⭐ 여기부터 추가 ⭐⭐⭐
   async function loadHistory() {
@@ -133,12 +183,45 @@ function App() {
     setHistory(data)
     setShowHistory(true)
   }
-  // ⭐⭐⭐ 여기까지 ⭐⭐⭐
+
+  async function loadRanking() {
+    const { data, error } = await supabase
+      .from('test_results')
+      .select(`
+        score,
+        user_id,
+        users:users!test_results_user_id_fkey1(nickname)
+      `)
+      .order('score', { ascending: false })
+
+    console.log('ranking data:', data)
+
+    if (error) {
+      console.log(error)
+      return
+    }
+
+    setRanking(data)
+
+    const myIndex = data.findIndex(
+      item => item.user_id === user.id
+    )
+
+    const myRank = myIndex + 1
+    setMyRank(myRank)
+
+    setShowRanking(true)
+  }
 
   useEffect(() => {
     const getSession = async () => {
       const { data } = await supabase.auth.getSession()
       setUser(data.session?.user || null)
+
+      // ⭐⭐⭐ 이거 추가 ⭐⭐⭐
+      if (data.session?.user) {
+        console.log('초기 로딩 → 닉네임 가져오기')
+      }
     }
 
     getSession()
@@ -146,6 +229,10 @@ function App() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null)
+
+        if (session?.user) {
+          console.log('로그인 감지 → 닉네임 가져오기')
+        }
       }
     )
 
@@ -153,6 +240,8 @@ function App() {
       listener.subscription.unsubscribe()
     }
   }, [])
+
+
 
   useEffect(() => {
     fetchWords()
@@ -418,7 +507,10 @@ function App() {
 
     setStreak(0)
     setWrongStreak(0)
+
     setUsedWords([])
+    setQuestion(null)
+    setChoices([])
 
     setIsFinished(false)
 
@@ -738,7 +830,69 @@ function App() {
     )
   }
 
+  if (showRanking) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '30px',
+          borderRadius: '12px',
+          width: '400px'
+        }}>
+
+          <h2>🏆 전체 랭킹 TOP 10</h2>
+          <p style={{
+            fontWeight: 'bold',
+            color: 'white',
+            backgroundColor: '#007bff',
+            padding: '8px',
+            borderRadius: '8px'
+          }}>
+            내 순위: {myRank}위
+          </p>
+
+          {ranking.slice(0, 10).map((item, index) => (
+            <div key={index} style={{
+              borderBottom: '1px solid #ddd',
+              padding: '10px 0'
+            }}>
+              <p>{index + 1}위</p>
+              <p>점수: {item.score ? item.score.toFixed(1) : '0'}</p>
+              <p>사용자: {item.users?.nickname || '익명'}</p>
+            </div>
+          ))}
+
+          <br />
+
+          <button
+            onClick={() => setShowRanking(false)}
+            style={btnStyle}
+          >
+            돌아가기
+          </button>
+
+        </div>
+      </div>
+    )
+  }
+
   if (showHistory) {
+
+    const scores = history.map(item => item.score)
+
+    const maxScore =
+      scores.length > 0 ? Math.max(...scores) : 0
+
+    const avgScore =
+      scores.length > 0
+        ? scores.reduce((a, b) => a + b, 0) / scores.length
+        : 0
 
     const chartData = {
       labels: history.map((_, i) => i + 1),
@@ -767,6 +921,14 @@ function App() {
         }}>
 
           <h2>내 기록</h2>
+
+          <p style={{ fontWeight: 'bold', color: 'green' }}>
+            최고 점수: {maxScore ? maxScore.toFixed(1) : '0'}
+          </p>
+
+          <p>
+            평균 점수: {avgScore ? avgScore.toFixed(1) : '0'}
+          </p>
           <div style={{ marginBottom: '20px' }}>
             <Line data={chartData} />
           </div>
@@ -780,7 +942,7 @@ function App() {
               borderBottom: '1px solid #ddd',
               padding: '10px 0'
             }}>
-              <p>점수: {item.score.toFixed(1)}</p>
+              <p>점수: {item.score ? item.score.toFixed(1) : '0'}</p>
               <p>정답: {item.correct_count} / 오답: {item.wrong_count}</p>
               <p style={{ fontSize: '12px', color: 'gray' }}>
                 {new Date(item.created_at).toLocaleString()}
@@ -823,7 +985,7 @@ function App() {
           textAlign: 'center'
         }}>
 
-          <h2>{user.email}님</h2>
+          <h2>{userNickname || '닉네임 없음'}님</h2>
 
           <button
             onClick={() => supabase.auth.signOut()}
@@ -835,6 +997,66 @@ function App() {
           >
             로그아웃
           </button>
+
+          <button
+            onClick={() => setIsEditingNickname(true)}
+            style={btnStyle}
+          >
+            닉네임 변경
+          </button>
+
+          {isEditingNickname && (
+            <div>
+              <p>현재 닉네임: {userNickname}</p>
+
+              <input
+                placeholder="새 닉네임"
+                value={newNickname}
+                onChange={(e) => setNewNickname(e.target.value)}
+                style={{ width: '100%', marginBottom: '10px' }}
+              />
+
+              <button
+                onClick={async () => {
+
+                  if (!newNickname.trim()) {
+                    alert('닉네임을 입력하세요')
+                    return
+                  }
+
+                  // ⭐⭐⭐ 중복 체크 추가 ⭐⭐⭐
+                  const { data: existing } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('nickname', newNickname)
+
+                  if (existing.length > 0) {
+                    alert('이미 사용 중인 닉네임입니다')
+                    return
+                  }
+
+                  const { error } = await supabase
+                    .from('users')
+                    .update({ nickname: newNickname })
+                    .eq('id', user.id)
+
+                  if (error) {
+                    alert('변경 실패')
+                  } else {
+                    alert('닉네임 변경 완료')
+
+                    await fetchNicknameDirect(user.id)
+
+                    setIsEditingNickname(false)
+                    setNewNickname('')
+                  }
+                }}
+                style={btnStyle}
+              >
+                변경 완료
+              </button>
+            </div>
+          )}
 
           <h1 style={{
             fontSize: '28px',
@@ -875,6 +1097,13 @@ function App() {
             내 기록 보기
           </button>
 
+          <button
+            onClick={() => loadRanking()}
+            style={btnStyle}
+          >
+            전체 랭킹 보기
+          </button>
+
           <br /><br />
 
           <button
@@ -896,7 +1125,7 @@ function App() {
     )
   }
 
-  if (!question) {
+  if (!question && testMode) {
     return <div>Loading...</div>
   }
 
