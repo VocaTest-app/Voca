@@ -843,7 +843,9 @@ function App() {
           backgroundColor: 'white',
           padding: '30px',
           borderRadius: '12px',
-          width: '400px'
+          width: '400px',
+          maxHeight: '80vh',   // ⭐ 추가
+          overflowY: 'auto'    // ⭐ 추가
         }}>
 
           <h2>🏆 전체 랭킹 TOP 10</h2>
@@ -857,28 +859,56 @@ function App() {
             내 순위: {myRank}위
           </p>
 
-          {ranking.slice(0, 10).map((item, index) => (
-            <div key={index} style={{
-              borderBottom: '1px solid #ddd',
-              padding: '10px 0'
+          {myRank > 10 && (
+            <div style={{
+              marginTop: '10px',
+              padding: '10px',
+              backgroundColor: '#fff3cd',
+              borderRadius: '8px'
             }}>
-              <p>{index + 1}위</p>
-              <p>점수: {item.score ? item.score.toFixed(1) : '0'}</p>
-              <p>사용자: {item.users?.nickname || '익명'}</p>
+              🔥 TOP10 밖입니다 (내 순위: {myRank}위)
             </div>
-          ))}
+          )}
 
-          <br />
+          {ranking.slice(0, 10).map((item, index) => {
 
-          <button
-            onClick={() => setShowRanking(false)}
-            style={btnStyle}
-          >
-            돌아가기
-          </button>
+            const isMe = item.user_id === user.id   // ⭐ 핵심
 
+            return (
+              <div key={index} style={{
+                borderBottom: '1px solid #ddd',
+                padding: '10px 0',
+
+                // ⭐⭐⭐ 강조 ⭐⭐⭐
+                backgroundColor: isMe ? '#d1ecf1' : 'transparent',
+                borderRadius: '8px'
+              }}>
+
+                <p>{index + 1}위</p>
+                <p>점수: {item.score ? item.score.toFixed(1) : '0'}</p>
+                <p>
+                  사용자: {item.users?.nickname || '익명'}
+                  {isMe && ' (나)'}   {/* ⭐ 표시 */}
+                </p>
+
+              </div>
+            )
+          })}
+          
         </div>
+          
+
+        <br />
+
+        <button
+          onClick={() => setShowRanking(false)}
+          style={btnStyle}
+        >
+          돌아가기
+        </button>
+
       </div>
+    
     )
   }
 
