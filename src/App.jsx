@@ -188,12 +188,16 @@ function App() {
     const { data, error } = await supabase
       .from('test_results')
       .select(`
-        score,
-        user_id,
-        users:users!test_results_user_id_fkey1(nickname)
-      `)
+    score,
+    user_id,
+    correct_count,
+    wrong_count,
+    users:users!test_results_user_id_fkey1(nickname)
+  `)
       .gt('score', 0)
-      .order('score', { ascending: false })
+      .order('score', { ascending: false })           // 1순위: 점수
+      .order('correct_count', { ascending: false })   // 2순위: 많이 푼 사람
+      .order('wrong_count', { ascending: true })      // 3순위: 덜 틀린 사람
 
     console.log('ranking data:', data)
 
@@ -712,7 +716,7 @@ function App() {
     console.log('저장 시도')   // ⭐ 추가
     console.log('user:', user)  // ⭐ 추가
 
-    if (finalscore > 0) {
+    if (finalScore > 0) {
 
       const { error } = await supabase
         .from('test_results')
@@ -891,6 +895,8 @@ function App() {
 
                 <p>{index + 1}위</p>
                 <p>점수: {item.score ? item.score.toFixed(1) : '0'}</p>
+                <p>문제 수: {item.correct_count + item.wrong_count}</p>
+                <p>오답 수: {item.wrong_count}</p>
                 <p>
                   사용자: {item.users?.nickname || '익명'}
                   {isMe && ' (나)'}   {/* ⭐ 표시 */}
@@ -924,17 +930,19 @@ function App() {
     const maxScore =
       scores.length > 0 ? Math.max(...scores) : 0
 
+
+
     const avgScore =
       scores.length > 0
         ? scores.reduce((a, b) => a + b, 0) / scores.length
         : 0
 
     const chartData = {
-      labels: history.map((_, i) => i + 1),
+      labels: history.slice().reverse().map((_, i) => i + 1),
       datasets: [
         {
           label: '점수 변화',
-          data: history.map(item => item.score),
+          data: history.slice().reverse().map(item => item.score),
           tension: 0.3
         }
       ]
@@ -952,7 +960,9 @@ function App() {
           backgroundColor: 'white',
           padding: '30px',
           borderRadius: '12px',
-          width: '400px'
+          width: '400px',
+          height: '80vh',        // ⭐⭐⭐ 추가 (핵심)
+          overflow: 'auto'       // ⭐⭐⭐ 추가
         }}>
 
           <h2>내 기록</h2>
@@ -964,8 +974,28 @@ function App() {
           <p>
             평균 점수: {avgScore ? avgScore.toFixed(1) : '0'}
           </p>
-          <div style={{ marginBottom: '20px' }}>
-            <Line data={chartData} />
+          <div style={{
+            marginBottom: '20px',
+            height: '300px',
+            paddingTop: '10px'
+          }}>
+            <Line
+              data={chartData}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: true
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: 15   // ⭐⭐⭐ 핵심 (여유 공간 확보)
+                  }
+                }
+              }}
+            />
           </div>
 
           {history.length === 0 && (
