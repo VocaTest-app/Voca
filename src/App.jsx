@@ -192,6 +192,7 @@ function App() {
         user_id,
         users:users!test_results_user_id_fkey1(nickname)
       `)
+      .gt('score', 0)
       .order('score', { ascending: false })
 
     console.log('ranking data:', data)
@@ -711,16 +712,20 @@ function App() {
     console.log('저장 시도')   // ⭐ 추가
     console.log('user:', user)  // ⭐ 추가
 
-    const { error } = await supabase
-      .from('test_results')
-      .insert([
-        {
-          user_id: user.id,
-          score: finalScore,
-          correct_count: correctCount,
-          wrong_count: wrongCount
-        }
-      ])
+    if (finalscore > 0) {
+
+      const { error } = await supabase
+        .from('test_results')
+        .insert([
+          {
+            user_id: user.id,
+            score: finalScore,
+            correct_count: correctCount,
+            wrong_count: wrongCount
+          }
+        ])
+    }
+
 
     if (error) {
       console.log('저장 실패:', error.message)
@@ -894,9 +899,9 @@ function App() {
               </div>
             )
           })}
-          
+
         </div>
-          
+
 
         <br />
 
@@ -908,7 +913,7 @@ function App() {
         </button>
 
       </div>
-    
+
     )
   }
 
