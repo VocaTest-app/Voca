@@ -77,6 +77,7 @@ function App() {
   const [ranking, setRanking] = useState([])
   const [myRank, setMyRank] = useState(null)
   const [showRanking, setShowRanking] = useState(false)
+  const [rankingType, setRankingType] = useState('all')
 
   const [nickname, setNickname] = useState('')
   const [userNickname, setUserNickname] = useState('')
@@ -87,6 +88,12 @@ function App() {
   console.log('user:', user)
   console.log('testMode:', testMode)
   console.log('showHistory:', showHistory)
+
+  const [startMode, setStartMode] = useState(null)
+
+  const [initialMode, setInitialMode] = useState(null)
+
+  const [finalMode, setFinalMode] = useState(null)
 
   useEffect(() => {
     if (isFinished && user) {
@@ -184,27 +191,61 @@ function App() {
     setShowHistory(true)
   }
 
-  async function loadRanking() {
-    const { data, error } = await supabase
+  async function loadRanking(type = 'all') {
+
+    console.log('🔥 loadRanking 실행됨')
+
+    console.log('현재 startMode:', startMode)
+
+    console.log('FILTER TYPE:', type)
+
+    console.log('TYPE:', type)
+
+
+
+    let query = supabase
       .from('test_results')
       .select(`
-    score,
-    user_id,
-    correct_count,
-    wrong_count,
-    users:users!test_results_user_id_fkey1(nickname)
-  `)
+        score,
+        user_id,
+        correct_count,
+        wrong_count,
+        start_mode,
+        users ( nickname )
+      `)
       .gt('score', 0)
-      .order('score', { ascending: false })           // 1순위: 점수
-      .order('correct_count', { ascending: false })   // 2순위: 많이 푼 사람
-      .order('wrong_count', { ascending: true })      // 3순위: 덜 틀린 사람
 
-    console.log('ranking data:', data)
+
+    // 🔥 여기 (3단계 필터 넣는 위치)
+    if (type === 'elementary') {
+      query = query.eq('start_mode', 'elementary')
+    }
+
+    if (type === 'middle') {
+      query = query.eq('start_mode', 'middle')
+    }
+
+    if (type === 'high') {
+      query = query.eq('start_mode', 'high')
+    }
+
+
+
+    query = query
+      .order('score', { ascending: false })
+      .order('correct_count', { ascending: false })
+      .order('wrong_count', { ascending: true })
+
+    const { data, error } = await query
 
     if (error) {
       console.log(error)
       return
     }
+
+    console.log('ranking data:', data)
+
+    if (!data) return
 
     setRanking(data)
 
@@ -216,6 +257,8 @@ function App() {
     setMyRank(myRank)
 
     setShowRanking(true)
+
+    setRankingType(type)
   }
 
   useEffect(() => {
@@ -493,6 +536,11 @@ function App() {
   function startTest(mode, startLevel) {
 
     setTestMode(mode)
+    setStartMode(mode)
+    setInitialMode(mode)
+
+    setFinalMode(mode)
+
     setLevelScore(startLevel)
 
     // 🔥 여기 추가 (핵심)
@@ -713,23 +761,27 @@ function App() {
 
   async function saveResult(finalScore) {
 
-    console.log('저장 시도')   // ⭐ 추가
-    console.log('user:', user)  // ⭐ 추가
+    console.log('저장 시도')
+    console.log('user:', user)
+
+    let error = null   // ⭐ 이 줄 추가
 
     if (finalScore > 0) {
 
-      const { error } = await supabase
+      const result = await supabase
         .from('test_results')
         .insert([
           {
             user_id: user.id,
             score: finalScore,
             correct_count: correctCount,
-            wrong_count: wrongCount
+            wrong_count: wrongCount,
+            start_mode: initialMode
           }
         ])
-    }
 
+      error = result.error   // ⭐ 여기 추가
+    }
 
     if (error) {
       console.log('저장 실패:', error.message)
@@ -857,7 +909,56 @@ function App() {
           overflowY: 'auto'    // ⭐ 추가
         }}>
 
-          <h2>🏆 전체 랭킹 TOP 10</h2>
+          <h2>
+            {rankingType === 'elementary' && '🏆 초등 랭킹 TOP 10'}
+            {rankingType === 'middle' && '🏆 중등 랭킹 TOP 10'}
+            {rankingType === 'all' && '🏆 전체 랭킹 TOP 10'}
+          </h2>
+
+          <div style={{
+            display: 'flex',
+            gap: '10px',
+            marginBottom: '20px'
+          }}>
+
+            <button
+              onClick={() => loadRanking('elementary')}
+              style={{
+                ...btnStyle,
+                backgroundColor: rankingType === 'elementary' ? '#007bff' : '#fafafa',
+                color: rankingType === 'elementary' ? 'white' : 'black',
+                fontWeight: rankingType === 'elementary' ? 'bold' : 'normal'
+              }}
+            >
+              초등
+            </button>
+
+            <button
+              onClick={() => loadRanking('middle')}
+              style={{
+                ...btnStyle,
+                backgroundColor: rankingType === 'middle' ? '#007bff' : '#fafafa',
+                color: rankingType === 'middle' ? 'white' : 'black',
+                fontWeight: rankingType === 'middle' ? 'bold' : 'normal'
+              }}
+            >
+              중등
+            </button>
+
+            <button
+              onClick={() => loadRanking('all')}
+              style={{
+                ...btnStyle,
+                backgroundColor: rankingType === 'all' ? '#007bff' : '#fafafa',
+                color: rankingType === 'all' ? 'white' : 'black',
+                fontWeight: rankingType === 'all' ? 'bold' : 'normal'
+              }}
+            >
+              전체
+            </button>
+
+          </div>
+
           <p style={{
             fontWeight: 'bold',
             color: 'white',
@@ -1163,7 +1264,7 @@ function App() {
           </button>
 
           <button
-            onClick={() => loadRanking()}
+            onClick={() => loadRanking('all')}
             style={btnStyle}
           >
             전체 랭킹 보기
@@ -1214,12 +1315,6 @@ function App() {
       subLevel = '고급'
     }
 
-    if (levelScore <= 6) {
-
-      levelText =
-        `초등 ${grade}학년 ${subLevel}`
-
-    }
     if (levelScore <= 6) {
 
       levelText =
@@ -1295,6 +1390,8 @@ function App() {
 
               setTestMode(null)
               setIsFinished(false)
+
+              setStartMode(null)
 
               setLevelScore(1.0)
 
