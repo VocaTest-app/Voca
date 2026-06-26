@@ -980,19 +980,16 @@ function App() {
   if (showRanking) {
     return (
       <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
         height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
         backgroundColor: '#f5f5f5'
       }}>
         <div style={{
+          flex: 1,
           backgroundColor: 'white',
-          padding: '30px',
-          borderRadius: '12px',
-          width: '400px',
-          maxHeight: '80vh',   // ⭐ 추가
-          overflowY: 'auto'    // ⭐ 추가
+          padding: '20px',
+          overflowY: 'auto'
         }}>
 
           <h2>
@@ -1093,17 +1090,34 @@ function App() {
             )
           })}
 
+          <div style={{
+            position: 'sticky',
+            bottom: 0,
+            backgroundColor: 'white',
+            borderTop: '1px solid #ddd',
+            padding: '12px'
+          }}>
+            <button
+              onClick={() => setShowRanking(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                backgroundColor: '#eee',
+                border: 'none',
+                fontSize: '14px'
+              }}
+            >
+              돌아가기
+            </button>
+          </div>
+
         </div>
 
 
         <br />
 
-        <button
-          onClick={() => setShowRanking(false)}
-          style={btnStyle}
-        >
-          돌아가기
-        </button>
+
 
       </div>
 
