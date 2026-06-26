@@ -95,6 +95,8 @@ function App() {
 
   const [finalMode, setFinalMode] = useState(null)
 
+  const [isSignup, setIsSignup] = useState(false)
+
   useEffect(() => {
     if (isFinished && user) {
 
@@ -129,6 +131,19 @@ function App() {
   }
 
   async function handleSignup() {
+
+    // 1. 닉네임 중복 체크
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('nickname', nickname)
+
+    if (existing && existing.length > 0) {
+      alert('이미 사용 중인 닉네임입니다')
+      return
+    }
+
+    // 2. auth 회원가입
     const { data, error } = await supabase.auth.signUp({
       email,
       password
@@ -136,18 +151,27 @@ function App() {
 
     if (error) {
       alert(error.message)
-    } else {
-      if (data?.user) {
-        await supabase.from('users').upsert([
+      return
+    }
+
+    // 3. users 테이블 저장
+    if (data?.user) {
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert([
           {
             id: data.user.id,
-            nickname: nickname || '닉네임 없음'
+            nickname: nickname
           }
         ])
-      }
 
-      alert('회원가입 성공!')
+      if (insertError) {
+        alert('유저 저장 실패')
+        return
+      }
     }
+
+    alert('회원가입 성공!')
   }
 
 
@@ -538,10 +562,11 @@ function App() {
     setTestMode(mode)
     setStartMode(mode)
     setInitialMode(mode)
-
     setFinalMode(mode)
 
     setLevelScore(startLevel)
+
+    window._startMode = mode
 
     // 🔥 여기 추가 (핵심)
     if (mode === 'elementary') {
@@ -776,7 +801,7 @@ function App() {
             score: finalScore,
             correct_count: correctCount,
             wrong_count: wrongCount,
-            start_mode: initialMode
+            start_mode: window._startMode
           }
         ])
 
@@ -845,6 +870,65 @@ function App() {
 
   // ⭐⭐⭐ 로그인 안 된 상태 ⭐⭐⭐
   if (!user) {
+
+    if (isSignup) {
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: '#f5f5f5'
+        }}>
+
+          <div style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '12px',
+            width: '300px',
+            textAlign: 'center'
+          }}>
+
+            <h2>회원가입</h2>
+
+            <input
+              placeholder="이메일"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <input
+              placeholder="닉네임"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <button onClick={handleSignup} style={{ width: '100%' }}>
+              회원가입 완료
+            </button>
+
+            <button
+              onClick={() => setIsSignup(false)}
+              style={{ width: '100%', marginTop: '10px' }}
+            >
+              돌아가기
+            </button>
+
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={{
         display: 'flex',
@@ -860,6 +944,8 @@ function App() {
           width: '300px',
           textAlign: 'center'
         }}>
+
+
 
           <h2>로그인</h2>
 
@@ -882,7 +968,7 @@ function App() {
             로그인
           </button>
 
-          <button onClick={handleSignup} style={{ width: '100%' }}>
+          <button onClick={() => setIsSignup(true)} style={btnStyle}>
             회원가입
           </button>
 
